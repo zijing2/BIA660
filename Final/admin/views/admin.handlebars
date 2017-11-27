@@ -1,0 +1,145 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">  
+    <title>Review Analyser Dashboard</title>
+    <meta name="description" content="">
+    <meta name="author" content="templatemo">
+    <!-- 
+    Visual Admin Template
+    http://www.templatemo.com/preview/templatemo_455_visual_admin
+    -->
+    <link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,400italic,700' rel='stylesheet' type='text/css'>
+      <link href="http://maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+      <link rel="stylesheet" href="http://cdn.bootcss.com/bootstrap/3.3.0/css/bootstrap.min.css">
+      <link href="/public/css/templatemo-style.css" rel="stylesheet">
+      <link href="http://cdn.bootcss.com/font-awesome/4.7.0/css/font-awesome.css" rel="stylesheet">
+
+    
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+
+  </head>
+  <body>  
+    <!-- Left column -->
+    <div class="templatemo-flex-row">
+      <div class="templatemo-sidebar">
+        <header class="templatemo-site-header">
+          <div class="square"></div>
+          <h1>Review Admin</h1>
+        </header>
+        <div class="profile-photo-container">
+          <img src="/public/img/maius.jpeg" alt="Profile Photo" class="img-responsive">  
+          <div class="profile-photo-overlay"></div>
+        </div>      
+        <!-- Search box -->
+       
+        <div class="mobile-menu-icon">
+            <i class="fa fa-bars"></i>
+          </div>
+        <nav class="templatemo-left-nav">          
+          <ul>
+            <li><a href="/admin/predict" {{#if is_predict}}class="active"{{/if}}><i class="fa fa-table fa-fw"></i>Data Prediction</a></li>
+            <li><a href="/admin/perform" {{#if is_perform}}class="active"{{/if}}><i class="fa fa-line-chart fa-fw"></i>Model Performance</a></li>
+            <li><a href="/admin/docinform" {{#if is_docinform}}class="active"{{/if}}><i class="fa fa-bar-chart fa-fw"></i>Document Inform</a></li>
+            <li><a href="/admin/logout" ><i class="fa fa-eject fa-fw"></i>Sign Out</a></li>
+          </ul>  
+        </nav>
+      </div>
+      <!-- Main content --> 
+      <div class="templatemo-content col-1 light-gray-bg">
+        <div class="templatemo-top-nav-container">
+          <div class="row">
+            <nav class="templatemo-top-nav col-lg-12 col-md-12">
+              <ul class="text-uppercase">
+                <li><a href="" class="active">Admin panel</a></li>
+              </ul>  
+            </nav> 
+          </div>
+        </div>
+        <div class="templatemo-content-container">
+          <div class="templatemo-content-widget no-padding">
+            <div class="panel panel-default table-responsive">
+              {{#if is_predict}}
+              <div class="templatemo-content-widget white-bg">
+                <h2 class="margin-bottom-10">Prediction</h2>
+                <p>Enter a review and get the classitication and sentiment.</p>
+                <form id="predict_form" class="templatemo-login-form" method="post" enctype="multipart/form-data">
+                  <div class="row form-group">
+                    <div class="col-lg-12 form-group">                    
+                        <textarea class="form-control" id="review" rows="3"></textarea>
+                    </div>
+                  </div>
+                  
+                  <div class="form-group text-right">
+                    <button type="submit" class="templatemo-blue-button" id="predict_submit">Submit</button>
+                    <button type="reset" class="templatemo-white-button" id="predict_reset">Reset</button>
+                  </div>                           
+                </form>
+                <h2 class="margin-bottom-10" style="display:none" id="predict_result_head">Result</h2>
+                <p id="predict_result_content" style="display:none"></p>
+              </div>
+              {{/if}}
+                
+              {{#if is_perform}}
+                 <div class="templatemo-content-widget white-bg">
+                  <h2 class="margin-bottom-10"> Label CNN Performance</h2>
+                    <pre>{{label_perform}}</pre>
+                  <h2 class="margin-bottom-10"> Sentiment CNN Performance</h2>
+                    <pre>{{sent_perform}}</pre>
+                  </div>
+              {{/if}}
+
+              {{#if is_docinform}}
+                  <div class="templatemo-content-widget white-bg">
+                  <h2 class="margin-bottom-10">Word Frequency</h2>
+                  <img src="http://localhost:8887/reviewAnalyser/api/v1.0/documentInform/1" alt="docinform1" />
+                  <h2 class="margin-bottom-10">Sentence Length</h2>
+                  <img src="http://localhost:8887/reviewAnalyser/api/v1.0/documentInform/2" alt="docinform2" />
+                  </div>
+              {{/if}}
+            </div>                          
+          </div>          
+          
+          {{!--<div class="pagination-wrap">
+            <ul class="pagination">
+              <li><a href="#">1</a></li>
+              <li><a href="#">2</a></li>
+              <li class="active"><a href="#">3 <span class="sr-only">(current)</span></a></li>
+              <li><a href="#">4</a></li>
+              <li><a href="#">5</a></li>
+              <li>
+                <a href="#" aria-label="Next">
+                  <span aria-hidden="true"><i class="fa fa-play"></i></span>
+                </a>
+              </li>
+            </ul>
+          </div>          --}}
+          <footer class="text-right">
+            <p>Copyright &copy; 2084 Company Name | Designed by <a href="http://www.templatemo.com" target="_parent">templatemo</a></p>
+          </footer>         
+        </div>
+      </div>
+    </div>
+    
+    <!-- JS -->
+    <script src="http://cdn.bootcss.com/jquery/1.11.1/jquery.min.js"></script>
+    <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
+    <script src="http://cdn.bootcss.com/bootstrap/3.3.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="/public/js/templatemo-script.js"></script>      <!-- Templatemo Script -->
+    <script type="text/javascript" src="/public/js/admin.js"></script> 
+    <script>
+      $(document).ready(function(){
+        // Content widget with background image
+        var imageUrl = $('img.content-bg-img').attr('src');
+        $('.templatemo-content-img-bg').css('background-image', 'url(' + imageUrl + ')');
+        $('img.content-bg-img').hide();        
+      });
+    </script>
+  </body>
+</html>
