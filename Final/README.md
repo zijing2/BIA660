@@ -17,6 +17,7 @@ To choose the reviews with high quality. The details can be found in the present
 ## Input file
 
 ./data_sample.csv (use to train the data)
+./test.json (which is the subset of yelp_data for the doc_vector training)
 
 # dependencies
 python:
