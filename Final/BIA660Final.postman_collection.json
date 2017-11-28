@@ -1,0 +1,122 @@
+{
+	"variables": [],
+	"info": {
+		"name": "BIA660Final",
+		"_postman_id": "068b2116-aa72-5e6f-7ff8-bf55514111f4",
+		"description": "test ReviewAnalyser RestfulAPI",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Predict Label by Sentence",
+			"request": {
+				"url": "127.0.0.1:8887/reviewAnalyser/api/v1.0/predict/label",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"text_arr\": [\"the beef steak is good\", \"the beef steak is crispy  and juicy\"]\n}"
+				},
+				"description": "test api"
+			},
+			"response": []
+		},
+		{
+			"name": "Predict Sentiment by Sentence",
+			"request": {
+				"url": "127.0.0.1:8887/reviewAnalyser/api/v1.0/predict/sentiment",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n\t\"text_arr\": [\"the beef steak is good\", \"the beef steak is crispy  and juicy\"]\n}"
+				},
+				"description": "predict sentiment"
+			},
+			"response": []
+		},
+		{
+			"name": "127.0.0.1:8887/reviewAnalyser/api/v1.0/performace/labelscnn",
+			"request": {
+				"url": "127.0.0.1:8887/reviewAnalyser/api/v1.0/performace/label",
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"description": "check labels cnn performance"
+			},
+			"response": []
+		},
+		{
+			"name": "127.0.0.1:8887/reviewAnalyser/api/v1.0/performace/sent",
+			"request": {
+				"url": "127.0.0.1:8887/reviewAnalyser/api/v1.0/performace/sent",
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"description": "test sentiment cnn performance"
+			},
+			"response": []
+		},
+		{
+			"name": "Predict Label and Sentiment by Review",
+			"request": {
+				"url": "http://localhost:8887/reviewAnalyser/api/v1.0/predict/review",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "",
+							"value": "",
+							"description": "",
+							"type": "text"
+						}
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "get document inform1",
+			"request": {
+				"url": "http://localhost:8887/reviewAnalyser/api/v1.0/documentInform/1",
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "get document inform2",
+			"request": {
+				"url": "http://localhost:8887/reviewAnalyser/api/v1.0/documentInform/2",
+				"method": "GET",
+				"header": [],
+				"body": {},
+				"description": ""
+			},
+			"response": []
+		}
+	]
+}

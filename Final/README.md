@@ -34,3 +34,10 @@ nodejs:
 express
 uuid
 request
+
+# in the future
+1. Add more trainning same (sample quantity)
+2. Let more people to do the sample aggrement (sample quality) 
+3. As long as the data sample incresing, the CNN training time processing increase as well. So we will put it into a distributed system.
+
+
