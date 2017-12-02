@@ -1,6 +1,9 @@
 # ReviewAnalyser(using deep learning)
 
-To choose the reviews with high quality. The details can be found in the presentation directory.
+To choose the premium reviews with high quality. The details can be found in the presentation directory.
+
+## deploying
+download or check out the project, make sure the port 8887 and 3001 in the local are not in use.
 
 ## Usage
 
@@ -16,8 +19,8 @@ To choose the reviews with high quality. The details can be found in the present
 
 ## Input file
 
-./data_sample.csv (use to train the data)
-./test.json (which is the subset of yelp_data for the doc_vector training)
+./data_sample2.csv (use to train the data)
+./word_sample.json (which is the subset of yelp_data for the doc_vector training)
 
 # dependencies
 python:
