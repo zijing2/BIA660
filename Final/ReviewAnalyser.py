@@ -24,10 +24,17 @@ from matplotlib.pyplot import plot,savefig
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from keras.models import Sequential
+from keras.layers import Dense
+from sklearn import metrics
+from keras.models import load_model
 
 
+
+DOCVECTOR_MODEL="docvector_model"
 BEST_MODEL_FILEPATH="best_model"
 BEST_SENT_MODEL_FILEPATH="best_sent_model"
+QUALITY_MODEL="quality_model"
 MAX_NB_WORDS=1467
 MAX_DOC_LEN=200
 EMBEDDING_DIM=200
@@ -37,6 +44,8 @@ NUM_EPOCHES = 40
 
 class ReviewAnalyser(object):
     
+    # review's ann model
+    ann_model = None
     # label's cnn model
     label_model = None
     # label's classification: ['amenities' 'environment' 'food' 'location' 'null' 'price' 'service' 'transport']
@@ -56,10 +65,20 @@ class ReviewAnalyser(object):
     # doc2vector's cnn model
     wv_model = None
     
-    
-    
     def __init__(self, data): 
         self.data = data;
+        
+    @staticmethod
+    def ann_model():
+        lam=0.01
+        model = Sequential()
+        model.add(Dense(12, input_dim=8, activation='relu', \
+                        kernel_regularizer=l2(lam), name='L2') )
+        model.add(Dense(8, activation='relu', \
+                        kernel_regularizer=l2(lam),name='L3') )
+        model.add(Dense(1, activation='sigmoid', name='Output'))
+        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        return model
         
     @staticmethod    
     def cnn_model(FILTER_SIZES, \
@@ -120,8 +139,8 @@ class ReviewAnalyser(object):
         return model
 
     # training to change document into vector using gensim
-    def pretrain(self):
-        with open("test.json", 'r') as f:
+    def pretrain(self, RETRAIN=0):
+        with open("word_sample.json", 'r') as f:
             reviews=[]
             for line in f: 
                 review = json.loads(line) 
@@ -141,14 +160,19 @@ class ReviewAnalyser(object):
 
 
         docs=[TaggedDocument(sentences[i], [str(i)]) for i in range(len(sentences)) ]
-        self.wv_model = doc2vec.Doc2Vec(dm=1, min_count=5, window=5, size=200, workers=4)
-        self.wv_model.build_vocab(docs) 
-
-        for epoch in range(30):
-            # shuffle the documents in each epoch
-            shuffle(docs)
-            # in each epoch, all samples are used
-            self.wv_model.train(docs, total_examples=len(docs), epochs=1)
+        
+        if RETRAIN==0 and os.path.exists(DOCVECTOR_MODEL):
+            self.wv_model = doc2vec.Doc2Vec.load(DOCVECTOR_MODEL)
+        else:
+            self.wv_model = doc2vec.Doc2Vec(dm=1, min_count=5, window=5, size=200, workers=4)
+            self.wv_model.build_vocab(docs)
+            for epoch in range(30):
+                # shuffle the documents in each epoch
+                shuffle(docs)
+                # in each epoch, all samples are used
+                self.wv_model.train(docs, total_examples=len(docs), epochs=1)
+                
+            self.wv_model.save(DOCVECTOR_MODEL)
 
 #         print("Top 5 words similar to word 'price'")
 #         print self.wv_model.wv.most_similar('price', topn=5)
@@ -173,7 +197,7 @@ class ReviewAnalyser(object):
             for d in subdata.split(","):
                 label.append(d.strip())
             labels.append(label)
-
+            
         mlb = MultiLabelBinarizer()
         Y=mlb.fit_transform(labels)
         self.label_act = Y
@@ -204,24 +228,26 @@ class ReviewAnalyser(object):
         X_train, X_test, Y_train, Y_test = train_test_split(\
                         padded_sequences, Y, test_size=0.3, random_state=0)
 
+        if(RETRAIN == 0 and os.path.exists(BEST_MODEL_FILEPATH)):
+#                 self.label_model.load_weights(BEST_MODEL_FILEPATH)
+                self.label_model = load_model(BEST_MODEL_FILEPATH)
+                pred=self.label_model.predict(padded_sequences[0:500])
+                return
+        
         self.label_model=ReviewAnalyser.cnn_model(FILTER_SIZES, MAX_NB_WORDS, \
                         MAX_DOC_LEN, NUM_OUTPUT_UNITS, \
                         PRETRAINED_WORD_VECTOR=embedding_matrix)
-        
-        if(RETRAIN == 0):
-            if os.path.exists("best_model"):
-                self.label_model.load_weights("best_model")
-                pred=self.label_model.predict(padded_sequences[0:500])
-                return
 
         earlyStopping=EarlyStopping(monitor='val_loss', patience=0, verbose=2, mode='min')
         checkpoint = ModelCheckpoint(BEST_MODEL_FILEPATH, monitor='val_acc', \
                                      verbose=2, save_best_only=True, mode='max')
-
+        
         training=self.label_model.fit(X_train, Y_train, \
                   batch_size=BTACH_SIZE, epochs=NUM_EPOCHES, \
                   callbacks=[earlyStopping, checkpoint],\
                   validation_data=[X_test, Y_test], verbose=2)
+        
+        self.label_model.save(BEST_MODEL_FILEPATH)
         
         return
         
@@ -262,27 +288,91 @@ class ReviewAnalyser(object):
 
         X_train, X_test, Y_train, Y_test = train_test_split(padded_sequences, Y, test_size=0.3, random_state=0)
 
+        
+        if(RETRAIN == 0 and os.path.exists(BEST_SENT_MODEL_FILEPATH)):
+#                 self.sent_model.load_weights("best_sent_model")
+                self.sent_model = load_model(BEST_SENT_MODEL_FILEPATH)
+                pred=self.sent_model.predict(padded_sequences[0:500])
+                return
+        
         self.sent_model=ReviewAnalyser.cnn_model(FILTER_SIZES, MAX_NB_WORDS, \
                     MAX_DOC_LEN, \
                     PRETRAINED_WORD_VECTOR=embedding_matrix)
-        
-        if(RETRAIN == 0):
-            if os.path.exists("best_sent_model"):
-                self.sent_model.load_weights("best_sent_model")
-                pred=self.sent_model.predict(padded_sequences[0:500])
-                return
-
 
         earlyStopping=EarlyStopping(monitor='val_loss', patience=0, verbose=2, mode='min')
         checkpoint = ModelCheckpoint(BEST_SENT_MODEL_FILEPATH, monitor='val_acc', \
                                      verbose=2, save_best_only=True, mode='max')
 
-        training=self.sent_model.fit(padded_sequences[0:500], self.data[3][0:500], \
+        training=self.sent_model.fit(X_train, Y_train, \
                   batch_size=BTACH_SIZE, epochs=NUM_EPOCHES, \
                   callbacks=[earlyStopping, checkpoint],\
-                  validation_data=[padded_sequences[0:500], self.data[3][0:500]], verbose=2) 
+                  validation_data=[X_test, Y_test], verbose=2) 
+        
+        self.sent_model.save(BEST_SENT_MODEL_FILEPATH)
         
         return
+    
+    # training review quality ANN
+    def trainQuality(self, RETRAIN=0, PERFORMANCE=0):
+        rows = {}
+        for subdata in self.data[0:192].values.tolist():
+            if rows.has_key(subdata[0]):
+                labels = subdata[2].split(',')
+                for label in labels:
+                    rows[subdata[0]][label.strip()] = rows[subdata[0]][label.strip()]+1.0
+                rows[subdata[0]]["sentiment"] = rows[subdata[0]]["sentiment"] + subdata[3]
+                rows[subdata[0]]["quality"] = subdata[4]
+                rows[subdata[0]]["items"] = rows[subdata[0]]["items"] + 1
+            else:
+                rows[subdata[0]] = {
+                    'items' : 0.0,
+                    'amenities' : 0.0,
+                    'environment' : 0.0,
+                    'food' : 0.0,
+                    'location' : 0.0,
+                    'null' : 0.0,
+                    'price': 0.0,
+                    'service': 0.0,
+                    'sentiment': 0.0,
+                    'quality': 0.0
+                }
+        data = []
+        for key in rows:
+            subdata=[]
+            subdata.append(rows[key]["amenities"]/rows[key]["items"])
+            subdata.append(rows[key]["environment"]/rows[key]["items"])
+            subdata.append(rows[key]["food"]/rows[key]["items"])
+            subdata.append(rows[key]["location"]/rows[key]["items"])
+            subdata.append(rows[key]["null"]/rows[key]["items"])
+            subdata.append(rows[key]["price"]/rows[key]["items"])
+            subdata.append(rows[key]["service"]/rows[key]["items"])
+            subdata.append(rows[key]["sentiment"]/rows[key]["items"])
+            subdata.append(rows[key]["quality"])
+            data.append(subdata)
+
+        df=pd.DataFrame(data, columns=["amenities","environment","food","location","null","price","service","sentiment","quality"])
+        X=df.values[:,0:8]
+        Y=df.values[:,8]
+
+        if RETRAIN == 0 and os.path.exists(QUALITY_MODEL):
+            self.ann_model = load_model(QUALITY_MODEL)
+        else:
+            self.ann_model = ReviewAnalyser.ann_model()
+            training=self.ann_model.fit(X, Y, validation_split=0.3, shuffle=True, epochs=150, batch_size=32, verbose=2)
+            self.ann_model.save(QUALITY_MODEL)
+        
+        if PERFORMANCE==1:
+            scores = self.ann_model.evaluate(X, Y)
+            print("\n%s: %.2f%%" % (self.ann_model.metrics_names[1], scores[1]*100))
+
+            predicted=self.ann_model.predict(X)
+            predicted=np.reshape(predicted, -1)
+            predicted=np.where(predicted>0.5, 1, 0)
+            print(metrics.classification_report(Y, predicted, labels=[0,1]))
+        
+        
+        return 
+    
 
     @staticmethod
     def checkPerform(model, mlb, data_tobe_predicted, Y_actual):
@@ -355,6 +445,7 @@ class ReviewAnalyser(object):
             rtn[key] = dict1
         return rtn
         
+    # predict sentiments for text, need to execute trainSentiment first    
     def predictSentiment(self, text_arr=[]):
         if len(text_arr)==0:
             return
@@ -368,4 +459,70 @@ class ReviewAnalyser(object):
         sub_pred = self.sent_model.predict(padded_sub_sequences)
         for i, key in enumerate(text_arr):
             rtn[key] = sub_pred[i].tolist()[0]
+        return rtn
+    
+    # predict quality for reviews, need to execute trainLabels,trainSentiment and trainQuality first    
+    def predictQuality(self, review_arr=[]):
+        text_arr=[]
+        sentence_review_mapping = []
+        data = []
+        rows = []
+        if len(review_arr)==0:
+            return
+        for i, rev in enumerate(review_arr):
+            rows.append({
+                'items' : 0.0,
+                'amenities' : 0.0,
+                'environment' : 0.0,
+                'food' : 0.0,
+                'location' : 0.0,
+                'null' : 0.0,
+                'price': 0.0,
+                'service': 0.0,
+                'sentiment': 0.0
+            })
+            rev_sent = tokenize.sent_tokenize(rev)
+            for sent in rev_sent:
+                text_arr.append(sent)
+                sentence_review_mapping.append((i,sent))
+            
+        label_predict = self.predictLabels(text_arr)
+        sentiment_predict = self.predictSentiment(text_arr)
+#         print sentence_review_mapping
+       
+        for mapping in sentence_review_mapping:
+            rows[mapping[0]]["items"] = rows[mapping[0]]["items"] + 1
+            rows[mapping[0]]["amenities"] = rows[mapping[0]]["amenities"]+label_predict[mapping[1]]["amenities"] 
+            rows[mapping[0]]["environment"] = rows[mapping[0]]["environment"]+label_predict[mapping[1]]["environment"] 
+            rows[mapping[0]]["food"] = rows[mapping[0]]["food"]+label_predict[mapping[1]]["food"]
+            rows[mapping[0]]["location"] = rows[mapping[0]]["location"]+label_predict[mapping[1]]["location"]
+            rows[mapping[0]]["null"] = rows[mapping[0]]["null"]+label_predict[mapping[1]]["null"]
+            rows[mapping[0]]["price"] = rows[mapping[0]]["price"]+label_predict[mapping[1]]["price"]
+            rows[mapping[0]]["service"] = rows[mapping[0]]["service"]+label_predict[mapping[1]]["service"]
+            rows[mapping[0]]["sentiment"] = rows[mapping[0]]["sentiment"]+sentiment_predict[mapping[1]]
+            
+        data = []
+        for row in rows:
+            subdata=[]
+            subdata.append(row["amenities"]/row["items"])
+            subdata.append(row["environment"]/row["items"])
+            subdata.append(row["food"]/row["items"])
+            subdata.append(row["location"]/row["items"])
+            subdata.append(row["null"]/row["items"])
+            subdata.append(row["price"]/row["items"])
+            subdata.append(row["service"]/row["items"])
+            subdata.append(row["sentiment"]/row["items"])
+            data.append(subdata)
+        df=pd.DataFrame(data, columns=["amenities","environment","food","location","null","price","service","sentiment"])
+        X = df.values[:,0:8]
+        
+        predicted=self.ann_model.predict(X)
+        predicted=np.reshape(predicted, -1)
+#         print(predicted)
+        #predicted=np.where(predicted>0.5, 1, 0)
+        rtn = {
+            "label_predict": label_predict,
+            "sentiment_predict": sentiment_predict,
+            "review_predict": predicted.tolist()
+        }
         return rtn
