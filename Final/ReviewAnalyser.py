@@ -29,18 +29,18 @@ from keras.layers import Dense
 from sklearn import metrics
 from keras.models import load_model
 
-
-
 DOCVECTOR_MODEL="docvector_model"
 BEST_MODEL_FILEPATH="best_model"
+BEST_LABEL_WEIGHT_FILEPATH="best_label_weight"
 BEST_SENT_MODEL_FILEPATH="best_sent_model"
+BEST_SENT_WEIGHT_FILEPATH="best_sent_weight"
 QUALITY_MODEL="quality_model"
-MAX_NB_WORDS=1467
+MAX_NB_WORDS=1000
 MAX_DOC_LEN=200
 EMBEDDING_DIM=200
 FILTER_SIZES=[2,3,4]
 BTACH_SIZE = 64
-NUM_EPOCHES = 40
+NUM_EPOCHES = 20
 
 class ReviewAnalyser(object):
     
@@ -54,6 +54,14 @@ class ReviewAnalyser(object):
     label_padding_sequence = None
     # labels actual classification
     label_act = None
+    # labels test set feature
+    label_X_test = None
+    # labels test set labels
+    label_Y_set = None
+    # labels validation set feature
+    label_X_train = None
+    # labels validation set labels
+    label_Y_train = None
     # sentiment's cnn model
     sent_model = None
     # sentiment's classification: ['0', '1'] 0: neutral, 1: positive/negative
@@ -62,6 +70,18 @@ class ReviewAnalyser(object):
     sent_padding_sequence = None
     # sentiment actual classification
     sent_act = None
+    # labels test set
+    sent_test_set = None
+    # sentiment's validation set
+    sent_validation_set = None
+    # sentitment's test set feature
+    sent_X_test = None
+    # sentitment's test set labels
+    sent_Y_set = None
+    # sentitment's validation set feature
+    sent_X_train = None
+    # sentitment's validation set labels
+    sent_Y_train = None
     # doc2vector's cnn model
     wv_model = None
     
@@ -222,16 +242,21 @@ class ReviewAnalyser(object):
                                          padding='post', truncating='post')
         self.label_padding_sequence = padded_sequences
         
-
+        
         NUM_OUTPUT_UNITS=len(mlb.classes_)
 
         X_train, X_test, Y_train, Y_test = train_test_split(\
-                        padded_sequences, Y, test_size=0.3, random_state=0)
-
+                        padded_sequences[0:500], Y[0:500], test_size=0.3, random_state=0)
+        
+        self.label_X_train = X_train
+        self.label_Y_train = Y_train
+        self.label_X_test = X_test
+        self.label_Y_test = Y_test
+        
         if(RETRAIN == 0 and os.path.exists(BEST_MODEL_FILEPATH)):
 #                 self.label_model.load_weights(BEST_MODEL_FILEPATH)
                 self.label_model = load_model(BEST_MODEL_FILEPATH)
-                pred=self.label_model.predict(padded_sequences[0:500])
+#                 pred=self.label_model.predict(padded_sequences[0:500])
                 return
         
         self.label_model=ReviewAnalyser.cnn_model(FILTER_SIZES, MAX_NB_WORDS, \
@@ -239,7 +264,7 @@ class ReviewAnalyser(object):
                         PRETRAINED_WORD_VECTOR=embedding_matrix)
 
         earlyStopping=EarlyStopping(monitor='val_loss', patience=0, verbose=2, mode='min')
-        checkpoint = ModelCheckpoint(BEST_MODEL_FILEPATH, monitor='val_acc', \
+        checkpoint = ModelCheckpoint(BEST_LABEL_WEIGHT_FILEPATH, monitor='val_acc', \
                                      verbose=2, save_best_only=True, mode='max')
         
         training=self.label_model.fit(X_train, Y_train, \
@@ -286,8 +311,11 @@ class ReviewAnalyser(object):
 
         NUM_OUTPUT_UNITS=len(mlb.classes_)
 
-        X_train, X_test, Y_train, Y_test = train_test_split(padded_sequences, Y, test_size=0.3, random_state=0)
-
+        X_train, X_test, Y_train, Y_test = train_test_split(padded_sequences[0:500], Y[0:500], test_size=0.3, random_state=0)
+        self.sent_X_train = X_train
+        self.sent_X_test = X_test
+        self.sent_Y_train = Y_train
+        self.sent_Y_test = Y_test
         
         if(RETRAIN == 0 and os.path.exists(BEST_SENT_MODEL_FILEPATH)):
 #                 self.sent_model.load_weights("best_sent_model")
@@ -295,12 +323,13 @@ class ReviewAnalyser(object):
                 pred=self.sent_model.predict(padded_sequences[0:500])
                 return
         
+        
         self.sent_model=ReviewAnalyser.cnn_model(FILTER_SIZES, MAX_NB_WORDS, \
                     MAX_DOC_LEN, \
                     PRETRAINED_WORD_VECTOR=embedding_matrix)
 
         earlyStopping=EarlyStopping(monitor='val_loss', patience=0, verbose=2, mode='min')
-        checkpoint = ModelCheckpoint(BEST_SENT_MODEL_FILEPATH, monitor='val_acc', \
+        checkpoint = ModelCheckpoint(BEST_SENT_WEIGHT_FILEPATH, monitor='val_acc', \
                                      verbose=2, save_best_only=True, mode='max')
 
         training=self.sent_model.fit(X_train, Y_train, \
@@ -383,6 +412,31 @@ class ReviewAnalyser(object):
                                     target_names=mlb.classes_))
         return classification_report(Y_actual, Y_pred, \
                                     target_names=mlb.classes_)
+    
+    def checkLabelPerform(self):
+        pred=self.label_model.predict(self.label_X_test)
+        Y_pred=np.copy(pred)
+        Y_pred=np.where(Y_pred>0.5,1,0)
+        Y_actual = self.label_Y_test
+        print Y_actual
+        print Y_pred
+        print self.label_mlb.classes_
+        print(classification_report(Y_actual, Y_pred, \
+                                    target_names=self.label_mlb.classes_))
+        return classification_report(Y_actual, Y_pred, \
+                                    target_names=self.label_mlb.classes_)
+        
+
+    def checkSentimentPerform(self):
+        pred=self.sent_model.predict(self.sent_X_test)
+        Y_pred=np.copy(pred)
+        Y_pred=np.where(Y_pred>0.5,1,0)
+        Y_actual = self.sent_Y_test
+        print(classification_report(Y_actual, Y_pred, \
+                                    target_names=self.sent_mlb.classes_))
+        return classification_report(Y_actual, Y_pred, \
+                                    target_names=self.sent_mlb.classes_)
+        
        
     # check document information to determine the value of hyper-parameter
     def checkDocInform(self):  

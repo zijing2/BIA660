@@ -63,7 +63,8 @@ def performance_labels():
     ra = ReviewAnalyser(data)
     ra.pretrain()
     ra.trainLebels(RETRAIN=0)
-    rtn = ReviewAnalyser.checkPerform(ra.label_model, ra.label_mlb, ra.label_padding_sequence, ra.label_act)
+    # rtn = ReviewAnalyser.checkPerform(ra.label_model, ra.label_mlb, ra.label_padding_sequence, ra.label_act)
+    rtn = ra.checkLabelPerform()
     #return jsonify({'result': rtn})
     return rtn
 
@@ -73,7 +74,8 @@ def performance_sent():
     ra = ReviewAnalyser(data)
     ra.pretrain()
     ra.trainSentiment(RETRAIN=0)
-    rtn = ReviewAnalyser.checkPerform(ra.sent_model, ra.sent_mlb, ra.sent_padding_sequence, ra.sent_act)
+    # rtn = ReviewAnalyser.checkPerform(ra.sent_model, ra.sent_mlb, ra.sent_padding_sequence, ra.sent_act)
+    rtn = ra.checkSentimentPerform()
     #return jsonify({'result': rtn})
     return rtn
 
