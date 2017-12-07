@@ -42,6 +42,7 @@ request
 # in the future
 1. Add more trainning same (sample quantity)
 2. Let more people to do the sample aggrement (sample quality) 
-3. As long as the data sample incresing, the CNN training time processing increase as well. So we will put it into a distributed system.
+3. As long as the data sample incresing, the CNN training time processing increase as well. So we will put it into a distributed system
+4. change the sentiment and review quality classification to regression. We can even change the labels classification to regression as well.
 
 

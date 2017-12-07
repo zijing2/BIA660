@@ -17,6 +17,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from nltk import tokenize
 from sklearn.preprocessing import LabelBinarizer
 from sklearn.metrics import classification_report
+from sklearn.metrics import mean_squared_error
 import os
 import matplotlib  
 matplotlib.use('Agg') 
@@ -97,7 +98,7 @@ class ReviewAnalyser(object):
         model.add(Dense(8, activation='relu', \
                         kernel_regularizer=l2(lam),name='L3') )
         model.add(Dense(1, activation='sigmoid', name='Output'))
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
         return model
         
     @staticmethod    
@@ -396,8 +397,11 @@ class ReviewAnalyser(object):
 
             predicted=self.ann_model.predict(X)
             predicted=np.reshape(predicted, -1)
-            predicted=np.where(predicted>0.5, 1, 0)
-            print(metrics.classification_report(Y, predicted, labels=[0,1]))
+            predicted = np.round(predicted, decimals=1)
+#             predicted=np.where(predicted>0.5, 1, 0)
+            print("mean_squared_error:")
+            print(mean_squared_error(Y, predicted))
+#             print(metrics.classification_report(Y, predicted, labels=[0,1]))
         
         
         return 
@@ -418,9 +422,6 @@ class ReviewAnalyser(object):
         Y_pred=np.copy(pred)
         Y_pred=np.where(Y_pred>0.5,1,0)
         Y_actual = self.label_Y_test
-        print Y_actual
-        print Y_pred
-        print self.label_mlb.classes_
         print(classification_report(Y_actual, Y_pred, \
                                     target_names=self.label_mlb.classes_))
         return classification_report(Y_actual, Y_pred, \
