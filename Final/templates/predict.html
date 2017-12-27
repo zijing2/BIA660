@@ -62,9 +62,11 @@
           </tr>
         </thead>
         <tbody>
+          {% for key in predict.review_predict %}
           <tr>
-            <td>{{predict.review_predict[0]}}</td>
+            <td>{{predict.review_predict[key]}}</td>
           </tr>             
+          {% endfor %}
         </tbody>
       </table>    
     </div> 

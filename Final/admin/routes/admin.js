@@ -45,12 +45,18 @@ router.get("/perform", (req, res) => {
         var label_perform = rtn.getBody().toString()
         var rtn = request('GET', 'http://127.0.0.1:8887/reviewAnalyser/api/v1.0/performace/sent');
         var sent_perform = rtn.getBody().toString()
+        var rtn = request('GET', 'http://127.0.0.1:8887/reviewAnalyser/api/v1.0/mlr/performace/label');
+        var mlr_label_perform = rtn.getBody().toString()
+        var rtn = request('GET', 'http://127.0.0.1:8887/reviewAnalyser/api/v1.0/mlr/performace/sent');
+        var mlr_sent_perform = rtn.getBody().toString()
 
         var data = {
                 "layout": "",
                 "is_perform": 1,
                 "label_perform": label_perform,
-                "sent_perform": sent_perform
+                "sent_perform": sent_perform,
+                "mlr_label_perform": mlr_label_perform,
+                "mlr_sent_perform": mlr_sent_perform
         };
         res.render('admin', data);
 });

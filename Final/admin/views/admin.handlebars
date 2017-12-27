@@ -46,7 +46,7 @@
           <ul>
             <li><a href="/admin/predict" {{#if is_predict}}class="active"{{/if}}><i class="fa fa-table fa-fw"></i>Data Prediction</a></li>
             <li><a href="/admin/perform" {{#if is_perform}}class="active"{{/if}}><i class="fa fa-line-chart fa-fw"></i>Model Performance</a></li>
-            <li><a href="/admin/docinform" {{#if is_docinform}}class="active"{{/if}}><i class="fa fa-bar-chart fa-fw"></i>Document Inform</a></li>
+            <li><a href="/admin/docinform" {{#if is_docinform}}class="active"{{/if}}><i class="fa fa-bar-chart fa-fw"></i>About Data Sample</a></li>
             <li><a href="/admin/logout" ><i class="fa fa-eject fa-fw"></i>Sign Out</a></li>
           </ul>  
         </nav>
@@ -93,11 +93,19 @@
                     <pre>{{label_perform}}</pre>
                   <h2 class="margin-bottom-10"> Sentiment CNN Performance</h2>
                     <pre>{{sent_perform}}</pre>
+                  <h2 class="margin-bottom-10"> Label sklearn.multioutput Performance</h2>
+                    <pre>{{mlr_label_perform}}</pre>
+                  <h2 class="margin-bottom-10"> Sentiment sklearn.multioutput Performance</h2>
+                    <pre>{{mlr_sent_perform}}</pre>
                   </div>
               {{/if}}
 
               {{#if is_docinform}}
                   <div class="templatemo-content-widget white-bg">
+                  <h2 class="margin-bottom-10">data sample - labels distribution</h2>
+                  <img src="http://localhost:8887/reviewAnalyser/api/v1.0/datasample/1" alt="docinform2" />
+                  <h2 class="margin-bottom-10">data sample - sentiment distribution</h2>
+                  <img src="http://localhost:8887/reviewAnalyser/api/v1.0/datasample/2" alt="docinform2" />
                   <h2 class="margin-bottom-10">Word Frequency</h2>
                   <img src="http://localhost:8887/reviewAnalyser/api/v1.0/documentInform/1" alt="docinform1" />
                   <h2 class="margin-bottom-10">Sentence Length</h2>

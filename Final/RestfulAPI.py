@@ -1,6 +1,7 @@
 #!flask/bin/python
 from flask import Flask, jsonify, request, Response
 from ReviewAnalyser import ReviewAnalyser
+from MLR import MLR
 from flask import render_template
 import pandas as pd
 from nltk import tokenize
@@ -50,7 +51,6 @@ def predict_review():
     #label_predict = ra.predictLabels(text_arr)
     ra.trainSentiment(RETRAIN=0)
     #sentiment_predict = ra.predictSentiment(text_arr)
-    ra.trainQuality()
     prediction = ra.predictQuality(review_arr=reviews)
     html = render_template("predict.html", predict=prediction)
     #resp = jsonify({'code': 100000, 'labels' : label_predict,'sent': sentiment_predict})
@@ -63,10 +63,8 @@ def performance_labels():
     ra = ReviewAnalyser(data)
     ra.pretrain()
     ra.trainLebels(RETRAIN=0)
-    # rtn = ReviewAnalyser.checkPerform(ra.label_model, ra.label_mlb, ra.label_padding_sequence, ra.label_act)
     rtn = ra.checkLabelPerform()
-    #return jsonify({'result': rtn})
-    return rtn
+    return jsonify({'mean_squared_error': rtn})
 
 @app.route('/reviewAnalyser/api/v1.0/performace/sent', methods=['GET'])
 def performance_sent():
@@ -74,23 +72,51 @@ def performance_sent():
     ra = ReviewAnalyser(data)
     ra.pretrain()
     ra.trainSentiment(RETRAIN=0)
-    # rtn = ReviewAnalyser.checkPerform(ra.sent_model, ra.sent_mlb, ra.sent_padding_sequence, ra.sent_act)
     rtn = ra.checkSentimentPerform()
-    #return jsonify({'result': rtn})
-    return rtn
+    return jsonify({'mean_squared_error': rtn})
+
+@app.route('/reviewAnalyser/api/v1.0/mlr/performace/label', methods=['GET'])
+def performance_labels_mlr():
+    data=pd.read_csv("data_sample2.csv",header=None)
+    mlr = MLR(data)
+    mlr.pretrain()
+    rtn = mlr.checkLabelsPerform()
+    return jsonify({'mean_squared_error': rtn})
+
+@app.route('/reviewAnalyser/api/v1.0/mlr/performace/sent', methods=['GET'])
+def performance_sent_mlr():
+    data=pd.read_csv("data_sample2.csv",header=None)
+    mlr = MLR(data)
+    mlr.pretrain()
+    rtn = mlr.checkSentimentPerform()
+    return jsonify({'mean_squared_error': rtn})
 
 @app.route('/reviewAnalyser/api/v1.0/documentInform/1', methods=['GET'])
 def performance_img1():
-    image = file("1.jpg")
+    image = file("word_freq.jpg")
     resp = Response(image, mimetype="image/jpeg")
     return resp
 
 @app.route('/reviewAnalyser/api/v1.0/documentInform/2', methods=['GET'])
 def performance_img2():
-    image = file("2.jpg")
+    image = file("sent_len.jpg")
+    resp = Response(image, mimetype="image/jpeg")
+    return resp
+
+@app.route('/reviewAnalyser/api/v1.0/datasample/1', methods=['GET'])
+def datasample_img1():
+    image = file("data_sample_labels.jpg")
+    resp = Response(image, mimetype="image/jpeg")
+    return resp
+
+@app.route('/reviewAnalyser/api/v1.0/datasample/2', methods=['GET'])
+def datasample_img2():
+    image = file("data_sample_sentiment.jpg")
     resp = Response(image, mimetype="image/jpeg")
     return resp
 
 if __name__ == '__main__':
+
     app.run(debug=True, port=8887)
+
 
