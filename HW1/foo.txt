@@ -1,0 +1,5 @@
+Hello world!
+     This is a hello world example !'''
+
+Python is a     GREAT language.
+Yeah it's great!!
