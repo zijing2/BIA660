@@ -19,7 +19,7 @@ def test_api():
 
 @app.route('/reviewAnalyser/api/v1.0/predict/label', methods=['POST'])
 def predict_label():
-    data=pd.read_csv("data_sampl2.csv",header=None)
+    data=pd.read_csv("data_sample2.csv",header=None)
     ra = ReviewAnalyser(data)
     ra.pretrain()
     ra.trainLebels(RETRAIN=0)
