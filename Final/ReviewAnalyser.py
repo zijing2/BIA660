@@ -36,12 +36,13 @@ BEST_LABEL_WEIGHT_FILEPATH="best_label_weight"
 BEST_SENT_MODEL_FILEPATH="best_sent_model"
 BEST_SENT_WEIGHT_FILEPATH="best_sent_weight"
 QUALITY_MODEL="quality_model"
-MAX_NB_WORDS=1000
+MAX_NB_WORDS=99
 MAX_DOC_LEN=200
 EMBEDDING_DIM=200
 FILTER_SIZES=[2,3,4]
 BTACH_SIZE = 64
-NUM_EPOCHES = 20
+NUM_EPOCHES = 40
+LABELS = ['amenities','environment','food','location','price','service','sentiment']
 
 class ReviewAnalyser(object):
     
@@ -49,8 +50,6 @@ class ReviewAnalyser(object):
     ann_model = None
     # label's cnn model
     label_model = None
-    # label's classification: ['amenities' 'environment' 'food' 'location' 'null' 'price' 'service' 'transport']
-    label_mlb = None
     # labels input padding sequence
     label_padding_sequence = None
     # labels actual classification
@@ -65,8 +64,6 @@ class ReviewAnalyser(object):
     label_Y_train = None
     # sentiment's cnn model
     sent_model = None
-    # sentiment's classification: ['0', '1'] 0: neutral, 1: positive/negative
-    sent_mlb = None
     # sentiment input padding sequence
     sent_padding_sequence = None
     # sentiment actual classification
@@ -88,18 +85,6 @@ class ReviewAnalyser(object):
     
     def __init__(self, data): 
         self.data = data;
-        
-    @staticmethod
-    def ann_model():
-        lam=0.01
-        model = Sequential()
-        model.add(Dense(12, input_dim=8, activation='relu', \
-                        kernel_regularizer=l2(lam), name='L2') )
-        model.add(Dense(8, activation='relu', \
-                        kernel_regularizer=l2(lam),name='L3') )
-        model.add(Dense(1, activation='sigmoid', name='Output'))
-        model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
-        return model
         
     @staticmethod    
     def cnn_model(FILTER_SIZES, \
@@ -154,8 +139,12 @@ class ReviewAnalyser(object):
         preds = Dense(NUM_OUTPUT_UNITS, activation=ACTIVATION, name='output')(dense)
         model = Model(inputs=main_input, outputs=preds)
 
-        model.compile(loss="binary_crossentropy", \
+#         model.compile(loss="binary_crossentropy", \
+#                   optimizer="adam", metrics=["accuracy"])
+        
+        model.compile(loss="mean_squared_error", \
                   optimizer="adam", metrics=["accuracy"]) 
+
 
         return model
 
@@ -179,11 +168,11 @@ class ReviewAnalyser(object):
                          len(token.strip(string.punctuation).strip())>=2]\
                      for doc in reviews]
 
-
         docs=[TaggedDocument(sentences[i], [str(i)]) for i in range(len(sentences)) ]
         
         if RETRAIN==0 and os.path.exists(DOCVECTOR_MODEL):
             self.wv_model = doc2vec.Doc2Vec.load(DOCVECTOR_MODEL)
+#             print self.wv_model
         else:
             self.wv_model = doc2vec.Doc2Vec(dm=1, min_count=5, window=5, size=200, workers=4)
             self.wv_model.build_vocab(docs)
@@ -216,14 +205,11 @@ class ReviewAnalyser(object):
         for subdata in self.data[2][0:500]:
             label = []
             for d in subdata.split(","):
-                label.append(d.strip())
+                label.append(float(d.strip()))
             labels.append(label)
-            
-        mlb = MultiLabelBinarizer()
-        Y=mlb.fit_transform(labels)
+        
+        Y = np.copy(labels)
         self.label_act = Y
-        self.label_mlb = mlb
-        np.sum(Y, axis=0)
 
         tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
         tokenizer.fit_on_texts(self.data[1][0:500])
@@ -243,9 +229,6 @@ class ReviewAnalyser(object):
                                          padding='post', truncating='post')
         self.label_padding_sequence = padded_sequences
         
-        
-        NUM_OUTPUT_UNITS=len(mlb.classes_)
-
         X_train, X_test, Y_train, Y_test = train_test_split(\
                         padded_sequences[0:500], Y[0:500], test_size=0.3, random_state=0)
         
@@ -261,7 +244,7 @@ class ReviewAnalyser(object):
                 return
         
         self.label_model=ReviewAnalyser.cnn_model(FILTER_SIZES, MAX_NB_WORDS, \
-                        MAX_DOC_LEN, NUM_OUTPUT_UNITS, \
+                        MAX_DOC_LEN, NUM_OUTPUT_UNITS=6, \
                         PRETRAINED_WORD_VECTOR=embedding_matrix)
 
         earlyStopping=EarlyStopping(monitor='val_loss', patience=0, verbose=2, mode='min')
@@ -281,16 +264,11 @@ class ReviewAnalyser(object):
     def trainSentiment(self, RETRAIN=0):
         labels = []
         for i,subdata in enumerate(self.data[3][0:500]):
-            if subdata == 1:
-                labels.append(['1'])
-            else:
-                labels.append(['0'])
+            labels.append([subdata])
 
         Y_labels = np.copy(labels)
-        mlb = LabelBinarizer()
-        Y = mlb.fit_transform(Y_labels)
+        Y = Y_labels
         self.sent_act = Y
-        self.sent_mlb = mlb
         
         tokenizer = Tokenizer(num_words=MAX_NB_WORDS)
         tokenizer.fit_on_texts(self.data[1][0:500])
@@ -310,8 +288,6 @@ class ReviewAnalyser(object):
                                          padding='post', truncating='post')
         self.sent_padding_sequence = padded_sequences
 
-        NUM_OUTPUT_UNITS=len(mlb.classes_)
-
         X_train, X_test, Y_train, Y_test = train_test_split(padded_sequences[0:500], Y[0:500], test_size=0.3, random_state=0)
         self.sent_X_train = X_train
         self.sent_X_test = X_test
@@ -319,7 +295,6 @@ class ReviewAnalyser(object):
         self.sent_Y_test = Y_test
         
         if(RETRAIN == 0 and os.path.exists(BEST_SENT_MODEL_FILEPATH)):
-#                 self.sent_model.load_weights("best_sent_model")
                 self.sent_model = load_model(BEST_SENT_MODEL_FILEPATH)
                 pred=self.sent_model.predict(padded_sequences[0:500])
                 return
@@ -342,101 +317,19 @@ class ReviewAnalyser(object):
         
         return
     
-    # training review quality ANN
-    def trainQuality(self, RETRAIN=0, PERFORMANCE=0):
-        rows = {}
-        for subdata in self.data[0:192].values.tolist():
-            if rows.has_key(subdata[0]):
-                labels = subdata[2].split(',')
-                for label in labels:
-                    rows[subdata[0]][label.strip()] = rows[subdata[0]][label.strip()]+1.0
-                rows[subdata[0]]["sentiment"] = rows[subdata[0]]["sentiment"] + subdata[3]
-                rows[subdata[0]]["quality"] = subdata[4]
-                rows[subdata[0]]["items"] = rows[subdata[0]]["items"] + 1
-            else:
-                rows[subdata[0]] = {
-                    'items' : 0.0,
-                    'amenities' : 0.0,
-                    'environment' : 0.0,
-                    'food' : 0.0,
-                    'location' : 0.0,
-                    'null' : 0.0,
-                    'price': 0.0,
-                    'service': 0.0,
-                    'sentiment': 0.0,
-                    'quality': 0.0
-                }
-        data = []
-        for key in rows:
-            subdata=[]
-            subdata.append(rows[key]["amenities"]/rows[key]["items"])
-            subdata.append(rows[key]["environment"]/rows[key]["items"])
-            subdata.append(rows[key]["food"]/rows[key]["items"])
-            subdata.append(rows[key]["location"]/rows[key]["items"])
-            subdata.append(rows[key]["null"]/rows[key]["items"])
-            subdata.append(rows[key]["price"]/rows[key]["items"])
-            subdata.append(rows[key]["service"]/rows[key]["items"])
-            subdata.append(rows[key]["sentiment"]/rows[key]["items"])
-            subdata.append(rows[key]["quality"])
-            data.append(subdata)
-
-        df=pd.DataFrame(data, columns=["amenities","environment","food","location","null","price","service","sentiment","quality"])
-        X=df.values[:,0:8]
-        Y=df.values[:,8]
-
-        if RETRAIN == 0 and os.path.exists(QUALITY_MODEL):
-            self.ann_model = load_model(QUALITY_MODEL)
-        else:
-            self.ann_model = ReviewAnalyser.ann_model()
-            training=self.ann_model.fit(X, Y, validation_split=0.3, shuffle=True, epochs=150, batch_size=32, verbose=2)
-            self.ann_model.save(QUALITY_MODEL)
-        
-        if PERFORMANCE==1:
-            scores = self.ann_model.evaluate(X, Y)
-            print("\n%s: %.2f%%" % (self.ann_model.metrics_names[1], scores[1]*100))
-
-            predicted=self.ann_model.predict(X)
-            predicted=np.reshape(predicted, -1)
-            predicted = np.round(predicted, decimals=1)
-#             predicted=np.where(predicted>0.5, 1, 0)
-            print("mean_squared_error:")
-            print(mean_squared_error(Y, predicted))
-#             print(metrics.classification_report(Y, predicted, labels=[0,1]))
-        
-        
-        return 
-    
-
-    @staticmethod
-    def checkPerform(model, mlb, data_tobe_predicted, Y_actual):
-        pred=model.predict(data_tobe_predicted)
-        Y_pred=np.copy(pred)
-        Y_pred=np.where(Y_pred>0.5,1,0)
-        print(classification_report(Y_actual, Y_pred, \
-                                    target_names=mlb.classes_))
-        return classification_report(Y_actual, Y_pred, \
-                                    target_names=mlb.classes_)
-    
     def checkLabelPerform(self):
-        pred=self.label_model.predict(self.label_X_test)
-        Y_pred=np.copy(pred)
-        Y_pred=np.where(Y_pred>0.5,1,0)
+        predicted=self.label_model.predict(self.label_X_test)
+        predicted = np.round(predicted, decimals=1)
         Y_actual = self.label_Y_test
-        print(classification_report(Y_actual, Y_pred, \
-                                    target_names=self.label_mlb.classes_))
-        return classification_report(Y_actual, Y_pred, \
-                                    target_names=self.label_mlb.classes_)
+        return mean_squared_error(Y_actual, predicted)
         
 
     def checkSentimentPerform(self):
         pred=self.sent_model.predict(self.sent_X_test)
-        Y_pred=np.copy(pred)
-        Y_pred=np.where(Y_pred>0.5,1,0)
+        predicted=np.reshape(pred, -1)
+        predicted = np.round(predicted, decimals=1)
         Y_actual = self.sent_Y_test
-        print(classification_report(Y_actual, Y_pred, \
-                                    target_names=self.sent_mlb.classes_))
-        return classification_report(Y_actual, Y_pred, \
-                                    target_names=self.sent_mlb.classes_)
+        return mean_squared_error(Y_actual, predicted)
         
        
     # check document information to determine the value of hyper-parameter
@@ -461,8 +354,9 @@ class ReviewAnalyser(object):
 
         plt.xlabel('Word Frequency')
         plt.ylabel('Percentage')
-        savefig('1.jpg')
+        savefig('word_freq.jpg')
         plt.show()
+        plt.close('all')
         
         sen_len=pd.Series([len(item) for item in sequences])
 
@@ -477,8 +371,10 @@ class ReviewAnalyser(object):
 
         plt.xlabel('Sentence Length')
         plt.ylabel('Percentage')
-        savefig('2.jpg')
+        savefig('sent_len.jpg')
         plt.show()
+        plt.close('all')
+        return
         
     # predict labels for text, need to execute trainLabels first
     def predictLabels(self, text_arr=[]):
@@ -496,7 +392,7 @@ class ReviewAnalyser(object):
             dict1 = {}
             pred_list = sub_pred[i].tolist()
             for i, sub_pred_list in enumerate(pred_list):
-                dict1[self.label_mlb.classes_[i]] = pred_list[i]
+                dict1[LABELS[i]] = pred_list[i]
             rtn[key] = dict1
         return rtn
         
@@ -521,21 +417,10 @@ class ReviewAnalyser(object):
         text_arr=[]
         sentence_review_mapping = []
         data = []
-        rows = []
+        rows = {}
         if len(review_arr)==0:
             return
         for i, rev in enumerate(review_arr):
-            rows.append({
-                'items' : 0.0,
-                'amenities' : 0.0,
-                'environment' : 0.0,
-                'food' : 0.0,
-                'location' : 0.0,
-                'null' : 0.0,
-                'price': 0.0,
-                'service': 0.0,
-                'sentiment': 0.0
-            })
             rev_sent = tokenize.sent_tokenize(rev)
             for sent in rev_sent:
                 text_arr.append(sent)
@@ -543,41 +428,107 @@ class ReviewAnalyser(object):
             
         label_predict = self.predictLabels(text_arr)
         sentiment_predict = self.predictSentiment(text_arr)
-#         print sentence_review_mapping
-       
+    
         for mapping in sentence_review_mapping:
-            rows[mapping[0]]["items"] = rows[mapping[0]]["items"] + 1
-            rows[mapping[0]]["amenities"] = rows[mapping[0]]["amenities"]+label_predict[mapping[1]]["amenities"] 
-            rows[mapping[0]]["environment"] = rows[mapping[0]]["environment"]+label_predict[mapping[1]]["environment"] 
-            rows[mapping[0]]["food"] = rows[mapping[0]]["food"]+label_predict[mapping[1]]["food"]
-            rows[mapping[0]]["location"] = rows[mapping[0]]["location"]+label_predict[mapping[1]]["location"]
-            rows[mapping[0]]["null"] = rows[mapping[0]]["null"]+label_predict[mapping[1]]["null"]
-            rows[mapping[0]]["price"] = rows[mapping[0]]["price"]+label_predict[mapping[1]]["price"]
-            rows[mapping[0]]["service"] = rows[mapping[0]]["service"]+label_predict[mapping[1]]["service"]
-            rows[mapping[0]]["sentiment"] = rows[mapping[0]]["sentiment"]+sentiment_predict[mapping[1]]
-            
-        data = []
-        for row in rows:
-            subdata=[]
-            subdata.append(row["amenities"]/row["items"])
-            subdata.append(row["environment"]/row["items"])
-            subdata.append(row["food"]/row["items"])
-            subdata.append(row["location"]/row["items"])
-            subdata.append(row["null"]/row["items"])
-            subdata.append(row["price"]/row["items"])
-            subdata.append(row["service"]/row["items"])
-            subdata.append(row["sentiment"]/row["items"])
-            data.append(subdata)
-        df=pd.DataFrame(data, columns=["amenities","environment","food","location","null","price","service","sentiment"])
-        X = df.values[:,0:8]
+            rows[mapping[1]] = {}
+            rows[mapping[1]]["review_id"] = mapping[0]
+            rows[mapping[1]]["sentence"] = mapping[1]
+            tmp = label_predict[mapping[1]]
+            rows[mapping[1]]["labels"] = str(tmp["amenities"])+','+str(tmp["environment"])+','+str(tmp["food"])+','+str(tmp["location"])+','+str(tmp["price"])+','+str(tmp["service"])
+            rows[mapping[1]]["sentiment"] = sentiment_predict[mapping[1]]
         
-        predicted=self.ann_model.predict(X)
-        predicted=np.reshape(predicted, -1)
-#         print(predicted)
-        #predicted=np.where(predicted>0.5, 1, 0)
+        data = []
+        for key in rows:
+            subdata=[]
+            subdata.append(rows[key]["review_id"])
+            subdata.append(rows[key]["sentence"])
+            subdata.append(rows[key]["labels"])
+            subdata.append(rows[key]["sentiment"])
+            data.append(subdata)
+        df=pd.DataFrame(data, columns=["review_id","sentence","labels","sentiment"])
+        res = self.gradeReview(df.values.tolist())
+        
+        predicted = {}
+        for k in res:
+            res[k]['quality'] = res[k]['quality']/res[k]['items']
+            predicted[review_arr[k]] = res[k]['quality']
+        
         rtn = {
             "label_predict": label_predict,
             "sentiment_predict": sentiment_predict,
-            "review_predict": predicted.tolist()
+            "review_predict": predicted
         }
         return rtn
+
+    # for analysing the data sample
+    def dataSamplePlt(self):
+        x = np.arange(0, 500, 1);
+        y = np.copy(self.data[3][0:500])
+        plt.xlabel('data sample items')
+        plt.ylabel('sentiment')
+        plt.plot(x, y,'ro',label="the level of objectivity")
+        plt.legend(loc='lower right')
+        savefig('data_sample_sentiment.jpg')
+        plt.close('all')
+        
+        amenities = []
+        environment = []
+        food = []
+        location = []
+        price = []
+        service = []
+        for subdata in self.data[2][0:500]:
+            label = []
+            for key,value in enumerate(subdata.split(",")):
+                if key == 0:
+                    amenities.append(float(value.strip()))
+                if key == 1:
+                    environment.append(float(value.strip()))
+                if key == 2:
+                    food.append(float(value.strip()))
+                if key == 3:
+                    location.append(float(value.strip()))
+                if key == 4:
+                    price.append(float(value.strip()))
+                if key == 5:
+                    service.append(float(value.strip()))
+        plt.xlabel('data sample items')
+        plt.ylabel('labels')
+        plt.scatter(x,np.copy(amenities),color='red',label="amenities")
+        plt.scatter(x,np.copy(environment),color='green',label="environment")
+        plt.scatter(x,np.copy(food),color='blue',label="food")
+        plt.scatter(x,np.copy(location),color='yellow',label="location")
+        plt.scatter(x,np.copy(price),color='black',label="price")
+        plt.scatter(x,np.copy(service),color='orange',label="service")
+        plt.legend(loc='lower right')
+        savefig('data_sample_labels.jpg')
+        plt.close('all')
+        return 
+    
+    def gradeCSV(self):
+        rows = self.gradeReview(self.data[0:500].values.tolist())
+        for k in rows:
+            rows[k]['quality'] = rows[k]['quality']/rows[k]['items']
+            self.data.loc[self.data[0] == k, 4] = rows[k]['quality']
+        print self.data.head(10)
+        self.data.to_csv('data_sample3.csv')
+    
+    
+    def gradeReview(self, reviews):
+        rows = {}
+        for subdata in reviews:
+            sent = subdata[3]
+            labels = subdata[2].split(',')
+            if rows.has_key(subdata[0]):
+                rows[subdata[0]]["items"] = float(rows[subdata[0]]["items"]) + 1
+                for key,label in enumerate(labels):
+                    rows[subdata[0]]['quality'] = rows[subdata[0]]['quality'] + (float(label)*float(sent))
+            else:
+                rows[subdata[0]] = {
+                    'items': 1.0,
+                    'quality': 0.0
+                }
+                for key,label in enumerate(labels):
+                    rows[subdata[0]]['quality'] = rows[subdata[0]]['quality'] + (float(label)*float(sent))
+                
+        return rows
